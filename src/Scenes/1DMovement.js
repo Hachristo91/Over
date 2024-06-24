@@ -12,9 +12,12 @@ class Movement extends Phaser.Scene {
         this.maxBullets = 1;
 
         this.my.sprite.enemies = [];
+        this.my.sprite.enemyBullets = [];
+        this.enemyFireBuffer = 0;
 
         this.score = 0;
         this.kills = 0;
+        this.health = 5;
 
         this.frame = 0;
 
@@ -102,10 +105,19 @@ class Movement extends Phaser.Scene {
             fontFamily: 'Times, serif',
             fontSize: 24,
             wordWrap: {
-                width: 60
+                width: 200
             }
         });
         this.gameOverText.setVisible(false);
+
+        this.loseText = this.add.text(400, 300, "Game Over! Press R to restart", {
+            fontFamily: 'Times, serif',
+            fontSize: 24,
+            wordWrap: {
+                width: 200
+            }
+        });
+        this.loseText.setVisible(false);
 
         my.sprite.body = this.add.sprite(game.config.width/2, game.config.height - 40, "spaceTwoParts", "spaceShips_006.png");
         my.sprite.body.setScale(0.5);
@@ -117,6 +129,12 @@ class Movement extends Phaser.Scene {
         my.sprite.charge = this.add.sprite(game.config.width/2, game.config.height - 330, "spaceOneParts", "laserBlue14.png");
         my.sprite.charge.visible = false;
         my.sprite.charge.setScale(2, 8.5);
+
+        my.sprite.health1 = this.add.sprite(20, 50, "spaceOneParts", "playerLife1_red.png");
+        my.sprite.health2 = this.add.sprite(20, 80, "spaceOneParts", "playerLife1_red.png");
+        my.sprite.health3 = this.add.sprite(20, 110, "spaceOneParts", "playerLife1_red.png");
+        my.sprite.health4 = this.add.sprite(20, 140, "spaceOneParts", "playerLife1_red.png");
+        my.sprite.health5 = this.add.sprite(20, 170, "spaceOneParts", "playerLife1_red.png");
 
 
         this.keys.a = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
@@ -145,6 +163,13 @@ class Movement extends Phaser.Scene {
     resetGame(){
         this.score = 0;
         this.kills = 0;
+        this.health = 5;
+
+        this.my.sprite.health1.visible = true;
+        this.my.sprite.health2.visible = true;
+        this.my.sprite.health3.visible = true;
+        this.my.sprite.health4.visible = true;
+        this.my.sprite.health5.visible = true;
 
         this.frame = 0;
 
@@ -159,7 +184,10 @@ class Movement extends Phaser.Scene {
         this.gameOver = false;
         this.waveBuffer = 0;
         this.gameOverText.setVisible(false);
+        this.loseText.setVisible(false);
         this.updateScore();
+
+        this.my.sprite.body.visible = true;
     }
 
     update() {
@@ -189,6 +217,10 @@ class Movement extends Phaser.Scene {
                 this.chargeTime++
             } else if(this.chargeTime > 20){
                 //Damage Player
+                this.health--;
+                this.sound.play("boom", {
+                    volume: 1   // Can adjust volume using this, goes from 0 to 1
+                });
                 this.chargeStart = 0;
                 this.chargeTime = 0;
                 this.reloadTime++;
@@ -237,6 +269,17 @@ class Movement extends Phaser.Scene {
             } else {
                 this.fireTime++;
             }
+        }
+
+        for(let enemy of my.sprite.enemies){
+            if(Math.abs(enemy.x - my.sprite.body.x) < 30 && this.enemyFireBuffer > 10){
+                my.sprite.enemyBullets.push(this.add.sprite(enemy.x, enemy.y+20, "spaceOneParts", "fire15.png"));
+                this.enemyFireBuffer = 0;
+            }
+        }
+
+        for (let bullet of my.sprite.enemyBullets) {
+            bullet.y += this.bulletSpeed;
         }
 
         if(this.frame == 30){
@@ -409,11 +452,52 @@ class Movement extends Phaser.Scene {
             }
         }
 
+        for(let bullet of my.sprite.enemyBullets){
+            if (this.collides(bullet, my.sprite.body)) {
+                // clear out bullet -- put y offscreen, will get reaped next update
+                this.sound.play("boom", {
+                    volume: 1   // Can adjust volume using this, goes from 0 to 1
+                });
+                bullet.visible = false;
+                this.health--;
+            }
+        }
+
+        my.sprite.enemyBullets = my.sprite.enemyBullets.filter((bullet) => bullet.y > -(bullet.displayHeight/2));
+
         for (let bullet of my.sprite.bullet) {
             bullet.y -= this.bulletSpeed;
         }
+
+        if(this.health == 4){
+            my.sprite.health5.visible = false;
+        }
+
+        if(this.health == 3){
+            my.sprite.health4.visible = false;
+        }
+
+        if(this.health == 2){
+            my.sprite.health3.visible = false;
+        }
+
+        if(this.health == 1){
+            my.sprite.health2.visible = false;
+        }
+
+        if(this.health <= 0){
+            my.sprite.health1.visible = false;
+            for(let enemy of my.sprite.enemies){
+                enemy.visible = false;
+            }
+            my.sprite.enemies = [];
+            my.sprite.body.visible = false;
+            this.loseText.setVisible(true);
+        }
+
         this.frame++;
         this.reloadTime++;
+        this.enemyFireBuffer++;
     }
 
     collides(a, b) {
